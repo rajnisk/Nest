@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import requests
-from apps.ai.embeddings.base import Embedder
+import openai
 from django.conf import settings
+
+from apps.ai.embeddings.base import Embedder
 
 
 class GoogleEmbedder(Embedder):
@@ -18,8 +19,12 @@ class GoogleEmbedder(Embedder):
 
         """
         self.api_key = settings.GOOGLE_API_KEY
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+            timeout=30,
+        )
         self.model = model or settings.GOOGLE_EMBEDDING_MODEL_NAME
-        self.endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/embeddings"
         self._dimensions = 768  # text-embedding-004 dimensions
 
     def embed_query(self, text: str) -> list[float]:
@@ -32,18 +37,11 @@ class GoogleEmbedder(Embedder):
             List of floats representing the embedding vector.
 
         """
-        response = requests.post(
-            self.endpoint,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={
-                "input": text,
-                "model": self.model,
-            },
-            timeout=30,
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=text,
         )
-        response.raise_for_status()
-        data = response.json()
-        return data["data"][0]["embedding"]
+        return response.data[0].embedding
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple documents.
@@ -55,18 +53,11 @@ class GoogleEmbedder(Embedder):
             List of embedding vectors, one per document.
 
         """
-        response = requests.post(
-            self.endpoint,
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json={
-                "input": texts,
-                "model": self.model,
-            },
-            timeout=60,
+        response = self.client.embeddings.create(
+            model=self.model,
+            input=texts,
         )
-        response.raise_for_status()
-        data = response.json()
-        return [item["embedding"] for item in data["data"]]
+        return [item.embedding for item in response.data]
 
     def get_dimensions(self) -> int:
         """Get the dimension of embeddings produced by this embedder.
