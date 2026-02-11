@@ -19,7 +19,9 @@ class Base(Configuration):
     DEBUG = False
     GITHUB_APP_ID = None
     GITHUB_APP_INSTALLATION_ID = None
+    IS_E2E_ENVIRONMENT = False
     IS_LOCAL_ENVIRONMENT = False
+    IS_FUZZ_ENVIRONMENT = False
     IS_PRODUCTION_ENVIRONMENT = False
     IS_STAGING_ENVIRONMENT = False
     IS_TEST_ENVIRONMENT = False
@@ -91,6 +93,7 @@ class Base(Configuration):
         "django.contrib.sessions.middleware.SessionMiddleware",
         "django.middleware.common.CommonMiddleware",
         "django.middleware.csrf.CsrfViewMiddleware",
+        "apps.common.middlewares.block_null_characters.BlockNullCharactersMiddleware",
         "django.contrib.auth.middleware.AuthenticationMiddleware",
         "django.contrib.messages.middleware.MessageMiddleware",
     ]
@@ -137,10 +140,13 @@ class Base(Configuration):
 
     REDIS_HOST = values.SecretValue(environ_name="REDIS_HOST")
     REDIS_PASSWORD = values.SecretValue(environ_name="REDIS_PASSWORD")
+    REDIS_AUTH_ENABLED = values.BooleanValue(environ_name="REDIS_AUTH_ENABLED", default=True)
     CACHES = {
         "default": {
             "BACKEND": "django_redis.cache.RedisCache",
-            "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:6379",
+            "LOCATION": f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:6379"
+            if REDIS_AUTH_ENABLED
+            else f"redis://{REDIS_HOST}:6379",
             "OPTIONS": {
                 "CLIENT_CLASS": "django_redis.client.DefaultClient",
             },
@@ -227,6 +233,7 @@ class Base(Configuration):
     # Using environ_name explicitly to allow it to be optional
     GOOGLE_API_KEY = values.Value(environ_name="DJANGO_GOOGLE_API_KEY", default=None)
     GOOGLE_MODEL_NAME = values.Value(default="gemini-2.0-flash")
+    GOOGLE_EMBEDDING_MODEL_NAME = values.Value(default="text-embedding-004")
     LLM_PROVIDER = values.Value(default="openai")
 
     SLACK_BOT_TOKEN = values.SecretValue()

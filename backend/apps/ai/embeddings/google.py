@@ -3,23 +3,22 @@
 from __future__ import annotations
 
 import requests
-from django.conf import settings
-
 from apps.ai.embeddings.base import Embedder
+from django.conf import settings
 
 
 class GoogleEmbedder(Embedder):
     """Google implementation of embedder using OpenAI compatible endpoint."""
 
-    def __init__(self, model: str = "text-embedding-004") -> None:
+    def __init__(self, model: str | None = None) -> None:
         """Initialize Google embedder.
 
         Args:
-            model: The Google embedding model to use.
+            model: The Google embedding model to use. If None, uses settings.
 
         """
         self.api_key = settings.GOOGLE_API_KEY
-        self.model = model
+        self.model = model or settings.GOOGLE_EMBEDDING_MODEL_NAME
         self.endpoint = "https://generativelanguage.googleapis.com/v1beta/openai/embeddings"
         self._dimensions = 768  # text-embedding-004 dimensions
 

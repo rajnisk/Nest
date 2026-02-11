@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import os
 
 from django.core.exceptions import ObjectDoesNotExist
 from pgvector.django.functions import CosineDistance
@@ -70,18 +69,28 @@ class QuestionDetector:
             - None: If the API call fails or the response is unexpected.
 
         """
-        prompt = Prompt.get_slack_question_detector_prompt()
+        try:
+            prompt = Prompt.get_slack_question_detector_prompt()
+        except ObjectDoesNotExist:
+            logger.warning("Prompt not found in database, using fallback.")
+            prompt = None
 
         if not prompt or not prompt.strip():
-            error_msg = "Prompt with key 'slack-question-detector-system-prompt' not found."
-            raise ObjectDoesNotExist(error_msg)
+            # Fallback prompt for local development or if database is not fully populated
+            system_prompt = (
+                "You are an OWASP expert assistant. Your task is to determine if the "
+                "provided question is related to OWASP (Open Web Application Security Project), "
+                "its projects, documentation, or general web security topics covered by OWASP.\n\n"
+                "Respond ONLY with 'YES' if it is related, or 'NO' if it is not."
+            )
+        else:
+            system_prompt = prompt
 
         formatted_context = (
             self.format_context_chunks(context_chunks)
             if context_chunks
             else "No context available"
         )
-        system_prompt = prompt
         user_prompt = f'Question: "{text}"\n\n Context: {formatted_context}'
 
         try:
